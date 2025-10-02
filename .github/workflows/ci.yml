@@ -26,12 +26,12 @@ jobs:
       - name: Créer fichier .env pour les tests
         run: |
           echo "DB_HOST=localhost" > .env
-          echo "DB_PORT=3307" >> .env
-          echo "DB_NAME=labo02_db" >> .env
-          echo "DB_USER=labo02" >> .env
-          echo "DB_PASS=labo02" >> .env
+          echo "DB_PORT=3306" >> .env
+          echo "DB_NAME=labo03_db" >> .env
+          echo "DB_USER=labo03" >> .env
+          echo "DB_PASS=labo03" >> .env
           echo "REDIS_HOST=localhost" >> .env
-          echo "REDIS_PORT=6379" >> .env
+          echo "REDIS_PORT=6380" >> .env
           echo "REDIS_DB=0" >> .env
 
       # Créer le réseau Docker si nécessaire
@@ -40,6 +40,14 @@ jobs:
           echo "🌐 Vérification du réseau Docker..."
           docker network create labo03-network 2>/dev/null || echo "Réseau labo03-network existe déjà"
           docker network ls | grep labo03-network
+
+      # Nettoyer les conteneurs existants
+      - name: Nettoyer les conteneurs existants
+        run: |
+          echo "🧹 Nettoyage des conteneurs existants..."
+          docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
+          docker container prune -f 2>/dev/null || true
+          echo "Nettoyage terminé"
 
       # Démarrer les services avec Docker Compose
       - name: Démarrer les services avec Docker Compose
