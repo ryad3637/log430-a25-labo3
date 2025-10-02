@@ -34,6 +34,13 @@ jobs:
           echo "REDIS_PORT=6379" >> .env
           echo "REDIS_DB=0" >> .env
 
+      # Créer le réseau Docker si nécessaire
+      - name: Créer le réseau Docker
+        run: |
+          echo "🌐 Vérification du réseau Docker..."
+          docker network create labo03-network 2>/dev/null || echo "Réseau labo03-network existe déjà"
+          docker network ls | grep labo03-network
+
       # Démarrer les services avec Docker Compose
       - name: Démarrer les services avec Docker Compose
         run: |
