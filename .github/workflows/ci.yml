@@ -41,12 +41,23 @@ jobs:
           docker network create labo03-network 2>/dev/null || echo "Réseau labo03-network existe déjà"
           docker network ls | grep labo03-network
 
-      # Nettoyer les conteneurs existants
-      - name: Nettoyer les conteneurs existants
+      # Nettoyer les conteneurs existants et libérer les ports
+      - name: Nettoyer les conteneurs existants et libérer les ports
         run: |
-          echo "🧹 Nettoyage des conteneurs existants..."
-          docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
+          echo "🧹 Nettoyage complet des conteneurs et ports..."
+          # Arrêter tous les conteneurs du projet
+          docker compose down --remove-orphans 2>/dev/null || docker-compose down --remove-orphans 2>/dev/null || true
+          # Arrêter les conteneurs qui utilisent nos ports
+          docker ps -q --filter "publish=5000" | xargs -r docker stop 2>/dev/null || true
+          docker ps -q --filter "publish=5001" | xargs -r docker stop 2>/dev/null || true  
+          docker ps -q --filter "publish=6379" | xargs -r docker stop 2>/dev/null || true
+          docker ps -q --filter "publish=6380" | xargs -r docker stop 2>/dev/null || true
+          docker ps -q --filter "publish=3306" | xargs -r docker stop 2>/dev/null || true
+          # Nettoyer les conteneurs arrêtés
           docker container prune -f 2>/dev/null || true
+          # Vérifier que les ports sont libres
+          echo "Ports actuellement utilisés:"
+          netstat -tlnp | grep -E ':(5000|5001|6379|6380|3306)' || echo "Aucun port en conflit détecté"
           echo "Nettoyage terminé"
 
       # Démarrer les services avec Docker Compose
@@ -75,10 +86,19 @@ jobs:
         if: success()
         run: |
           echo "🚀 Déploiement de l'application..."
-          docker compose down || docker-compose down || true
+          # Arrêt propre avec nettoyage
+          docker compose down --remove-orphans || docker-compose down --remove-orphans || true
+          sleep 2
+          # Démarrage des services
           docker compose up -d --build || docker-compose up -d --build
+          sleep 5
           echo "📊 Statut des conteneurs:"
           docker compose ps || docker-compose ps
+          echo "🌐 Application disponible sur:"
+          echo "  - Store Manager: http://localhost:5001"
+          echo "  - GraphQL: http://localhost:5001/stocks/graphql-query"
+          echo "  - MySQL: localhost:3306"
+          echo "  - Redis: localhost:6380"
           echo "✅ Déploiement terminé!"
 
       # Nettoyage final des fichiers Python
