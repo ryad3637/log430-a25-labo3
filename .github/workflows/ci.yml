@@ -1,35 +1,76 @@
 name: CI
 
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
+on: 
+  [push, pull_request]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: self-hosted
+    
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      # Nettoyage préalable des fichiers Python
+      - name: Nettoyage préalable
+        run: |
+          echo "🧹 Nettoyage des fichiers cache Python..."
+          sudo find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+          sudo find . -name "*.pyc" -delete 2>/dev/null || true
+          echo "Nettoyage terminé!"
+      
+      # Checkout du dépôt
+      - name: Checkout dépot
+        uses: actions/checkout@v3
         with:
-          python-version: '3.11'
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          clean: true
 
-      - name: Creer fichier .env
+      # Créer fichier .env pour les tests
+      - name: Créer fichier .env pour les tests
         run: |
-          echo "DB_HOST=127.0.0.1" >> .env
-          echo "DB_PORT=3306" >> .env
-          echo "DB_NAME=labo03_db" >> .env
-          echo "DB_USER=labo03" >> .env
-          echo "DB_PASS=labo03" >> .env
-          echo "REDIS_HOST=127.0.0.1" >> .env
+          echo "DB_HOST=localhost" > .env
+          echo "DB_PORT=3307" >> .env
+          echo "DB_NAME=labo02_db" >> .env
+          echo "DB_USER=labo02" >> .env
+          echo "DB_PASS=labo02" >> .env
+          echo "REDIS_HOST=localhost" >> .env
           echo "REDIS_PORT=6379" >> .env
           echo "REDIS_DB=0" >> .env
 
-      - name: Run tests
-        working-directory: src
-        run: echo "Call pytest command here!"
+      # Démarrer les services avec Docker Compose
+      - name: Démarrer les services avec Docker Compose
+        run: |
+          echo "🚀 Démarrage des services de base de données..."
+          docker compose up -d mysql redis || docker-compose up -d mysql redis
+          echo "⏳ Attente que les services soient prêts..."
+          sleep 20
+
+      # Installer les dépendances Python
+      - name: Installer les dépendances Python
+        run: |
+          python3 -m pip install --upgrade pip --break-system-packages
+          pip3 install -r requirements.txt --break-system-packages
+          pip3 install pytest --break-system-packages
+
+      # Lancer les tests
+      - name: Lancer les tests
+        run: |
+          export PYTHONPATH=$(pwd)/src
+          /home/log430/.local/bin/pytest src/tests --maxfail=1 --disable-warnings -v
+
+      # Déploiement local si les tests réussissent
+      - name: Déploiement local
+        if: success()
+        run: |
+          echo "🚀 Déploiement de l'application..."
+          docker compose down || docker-compose down || true
+          docker compose up -d --build || docker-compose up -d --build
+          echo "📊 Statut des conteneurs:"
+          docker compose ps || docker-compose ps
+          echo "✅ Déploiement terminé!"
+
+      # Nettoyage final des fichiers Python
+      - name: Nettoyage final
+        if: always()
+        run: |
+          echo "🧹 Nettoyage des fichiers cache Python..."
+          sudo find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+          sudo find . -name "*.pyc" -delete 2>/dev/null || true
+          echo "✅ Nettoyage final terminé!"

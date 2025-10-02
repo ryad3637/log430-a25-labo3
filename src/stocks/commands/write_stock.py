@@ -100,8 +100,13 @@ def _populate_redis_from_mysql(redis_conn):
     """ Helper function to populate Redis from MySQL stocks table """
     session = get_sqlalchemy_session()
     try:
+        # JOIN avec la table products pour récupérer name, sku, price
         stocks = session.execute(
-            text("SELECT product_id, quantity FROM stocks")
+            text("""
+                SELECT s.product_id, s.quantity, p.name, p.sku, p.price 
+                FROM stocks s 
+                JOIN products p ON s.product_id = p.id
+            """)
         ).fetchall()
 
         if not len(stocks):
@@ -110,10 +115,15 @@ def _populate_redis_from_mysql(redis_conn):
         
         pipeline = redis_conn.pipeline()
         
-        for product_id, quantity in stocks:
+        for product_id, quantity, name, sku, price in stocks:
             pipeline.hset(
                 f"stock:{product_id}", 
-                mapping={ "quantity": quantity }
+                mapping={
+                    "quantity": quantity,
+                    "name": name,
+                    "sku": sku,
+                    "price": float(price)
+                }
             )
         
         pipeline.execute()
