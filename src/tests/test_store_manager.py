@@ -7,10 +7,29 @@ Auteurs : Gabriel C. Ullmann, Fabio Petrillo, 2025
 import json
 import pytest
 from store_manager import app
+from orders.models.base import Base
+from orders.models.user import User
+from orders.models.order import Order
+from orders.models.order_item import OrderItem
+from stocks.models.product import Product
+from stocks.models.stock import Stock
+from db import get_sqlalchemy_session, engine
+
+def init_test_db():
+    """Initialize test database tables"""
+    try:
+        # Create all tables if they don't exist
+        Base.metadata.create_all(engine)
+        print("✅ Database tables initialized for tests")
+    except Exception as e:
+        print(f"⚠️ Database initialization warning: {e}")
 
 @pytest.fixture
 def client():
     app.config['TESTING'] = True
+    # Initialize database before tests
+    init_test_db()
+    
     with app.test_client() as client:
         yield client
 
@@ -48,8 +67,10 @@ def test_stock_flow(client):
     assert stock_response['quantity'] == 5
     print(f"Stock initial vérifié: {stock_response['quantity']} unités")
 
-    # Créer un utilisateur pour la commande
-    user_data = {'name': 'Test User', 'email': 'test@example.com'}
+    # Créer un utilisateur pour la commande (utiliser un email unique)
+    import time
+    unique_email = f'test_{int(time.time())}@example.com'
+    user_data = {'name': 'Test User', 'email': unique_email}
     response = client.post('/users',
                           data=json.dumps(user_data),
                           content_type='application/json')
@@ -57,6 +78,7 @@ def test_stock_flow(client):
     if response.status_code != 201:
         print(f"❌ Erreur lors de la création d'utilisateur: {response.status_code}")
         print(f"Response data: {response.get_data(as_text=True)}")
+        print(f"User data sent: {user_data}")
     assert response.status_code == 201
     user_response = response.get_json()
     user_id = user_response['user_id']
