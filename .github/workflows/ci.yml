@@ -75,6 +75,21 @@ jobs:
           pip3 install -r requirements.txt --break-system-packages
           pip3 install pytest --break-system-packages
 
+      # Vérifier la disponibilité de la base de données
+      - name: Vérifier la disponibilité de la base de données
+        run: |
+          echo "🔍 Vérification de la disponibilité de MySQL..."
+          # Attendre que MySQL soit prêt
+          timeout 60 bash -c 'until docker compose exec mysql mysqladmin -u labo03 -plabo03 ping 2>/dev/null; do sleep 2; done' || timeout 60 bash -c 'until docker-compose exec mysql mysqladmin -u labo03 -plabo03 ping 2>/dev/null; do sleep 2; done'
+          echo "✅ MySQL est prêt"
+          
+          echo "🔍 Vérification des tables dans la base de données..."
+          docker compose exec mysql mysql -u labo03 -plabo03 labo03_db -e "SHOW TABLES;" || docker-compose exec mysql mysql -u labo03 -plabo03 labo03_db -e "SHOW TABLES;"
+          
+          echo "🔍 Vérification de Redis..."
+          docker compose exec redis redis-cli ping || docker-compose exec redis redis-cli ping
+          echo "✅ Redis est prêt"
+
       # Lancer les tests
       - name: Lancer les tests
         run: |

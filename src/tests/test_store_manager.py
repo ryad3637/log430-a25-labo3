@@ -54,6 +54,9 @@ def test_stock_flow(client):
                           data=json.dumps(user_data),
                           content_type='application/json')
     
+    if response.status_code != 201:
+        print(f"❌ Erreur lors de la création d'utilisateur: {response.status_code}")
+        print(f"Response data: {response.get_data(as_text=True)}")
     assert response.status_code == 201
     user_response = response.get_json()
     user_id = user_response['user_id']
